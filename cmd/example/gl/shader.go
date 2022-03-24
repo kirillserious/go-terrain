@@ -3,6 +3,8 @@ package gl
 import (
 	"fmt"
 	"github.com/go-gl/gl/v4.1-core/gl"
+	"regexp"
+	"strings"
 )
 
 type ShaderKind uint32
@@ -19,15 +21,40 @@ type Shader struct {
 }
 
 func NewShader(kind ShaderKind, source string) (shader *Shader, err error) {
-	shader = CreateShader(kind)
-	shader.SetSources(source)
-	shader.Compile()
+	shader = new(Shader)
+	shader.Id, shader.Kind, shader.Source = generateShaderId(kind), kind, source
+	shader.setSources(source)
+	shader.compile()
 
 	if success := shader.GetCompileStatus(); !success {
 		logLength := shader.GetLogInfoLength()
 		log := shader.GetInfoLog(logLength)
 		shader = nil
 		err = fmt.Errorf("failed to compile shader %v: %v", source, log)
+	}
+	return
+}
+
+var (
+	uniformArgRegexp = regexp.MustCompile("^uniform .*;")
+	inArgRegexp      = regexp.MustCompile("^in .*;")
+	outArgRegexp     = regexp.MustCompile("^out .*;")
+)
+
+func (shader *Shader) Args() (uniform []string, in []string, out []string) {
+	lines := strings.Split(shader.Source, "\n")
+
+	tool := func(line string, slice *[]string, re *regexp.Regexp) {
+		if found := re.FindString(line); found != "" {
+			split := strings.Split(found, " ")
+			last := split[len(split)-1]
+			*slice = append(*slice, last[:len(last)-1])
+		}
+	}
+	for _, line := range lines {
+		tool(line, &uniform, uniformArgRegexp)
+		tool(line, &in, inArgRegexp)
+		tool(line, &out, outArgRegexp)
 	}
 	return
 }
@@ -43,17 +70,16 @@ func (shader *Shader) Delete() {
 
 // GL Functions
 
-func CreateShader(kind ShaderKind) (shader *Shader) {
-	shader = new(Shader)
-	shader.Id = gl.CreateShader(uint32(kind))
+func generateShaderId(kind ShaderKind) (id uint32) {
+	id = gl.CreateShader(uint32(kind))
 	return
 }
 
-func (shader *Shader) Compile() {
+func (shader *Shader) compile() {
 	gl.CompileShader(shader.Id)
 }
 
-func (shader *Shader) SetSources(sources ...string) {
+func (shader *Shader) setSources(sources ...string) {
 	glSources, free := glStrings(sources...)
 	gl.ShaderSource(shader.Id, int32(len(sources)), glSources, nil)
 	free()

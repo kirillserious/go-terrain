@@ -69,18 +69,18 @@ func (camera *Camera) Move(delta float64, directions ...Direction) {
 		case RightDirection:
 			camera.Position = camera.Position.Add(right.Mul(positionVelocity))
 		case UpRotation:
-			camera.Yaw += rotationVelocity
+			camera.Pitch += rotationVelocity
 		case DownRotation:
-			camera.Yaw -= rotationVelocity
-		case LeftRotation:
 			camera.Pitch -= rotationVelocity
-			if camera.Pitch < -89 {
-				camera.Pitch = -89
+		case LeftRotation:
+			camera.Yaw -= rotationVelocity
+			if camera.Yaw < -89 {
+				camera.Yaw = -89
 			}
 		case RightRotation:
-			camera.Pitch += rotationVelocity
-			if camera.Pitch > 89 {
-				camera.Pitch = 89
+			camera.Yaw += rotationVelocity
+			if camera.Yaw > 89 {
+				camera.Yaw = 89
 			}
 		}
 	}

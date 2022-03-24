@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime"
 	gl2 "terrain/cmd/example/gl"
+	"unsafe"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -22,16 +23,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	//go:embed simple.vertex.glsl
-	SimpleVertexShader string
-
-	//go:embed simple.fragment.glsl
-	SimpleFragmentShader string
-)
-
-const windowWidth = 800
-const windowHeight = 600
+var windowWidth = 800
+var windowHeight = 600
 
 func init() {
 	// GLFW event handling must run on the main OS thread
@@ -39,9 +32,25 @@ func init() {
 }
 
 var mainCamera = Camera{
-	Position: mgl32.Vec3{0, -0, 0}, WorldUp: mgl32.Vec3{0, 1, 0},
+	Position: mgl32.Vec3{10, 10, 10}, WorldUp: mgl32.Vec3{0, 1, 0},
 	Yaw: 0, Pitch: 0, Zoom: 0,
-	MovementSpeed: 10, RotationSpeed: 100,
+	MovementSpeed: 30, RotationSpeed: 100,
+}
+
+func debugCb(
+	source uint32,
+	gltype uint32,
+	id uint32,
+	severity uint32,
+	length int32,
+	message string,
+	userParam unsafe.Pointer) {
+
+	msg := fmt.Sprintf("[GL_DEBUG] source %d gltype %d id %d severity %d length %d: %s", source, gltype, id, severity, length, message)
+	if severity == gl.DEBUG_SEVERITY_HIGH {
+		panic(msg)
+	}
+	fmt.Println(msg)
 }
 
 func main() {
@@ -70,56 +79,46 @@ func main() {
 
 	log.Infof("OpenGL version: %s", gl2.GetVersion())
 
-	gl.Viewport(0, 0, windowWidth, windowHeight)
-	// Configure the vertex and fragment shaders
-	program, err := newProgram(SimpleVertexShader, fragmentShader)
-	if err != nil {
-		panic(err)
-	}
+	gl.Enable(gl.DEBUG_OUTPUT)
+	gl.DebugMessageCallback(debugCb, unsafe.Pointer(nil))
 
-	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 100.0)
+	gl.Viewport(0, 0, int32(windowWidth), int32(windowHeight))
+
+	/*
+		program, err := gl2.NewProgram(map[gl2.ShaderKind]string{
+			gl2.VertexShaderKind:   vertexShader,
+			gl2.FragmentShaderKind: fragmentShader,
+		})
+		if err != nil {
+			panic(err)
+		}
+	*/
+	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/float32(windowHeight), 0.1, 100.0)
 	camera := mainCamera.ViewMatrix()
-	model := mgl32.Ident4()
-
-	program.SetArgument("projection", projection)
-	program.SetArgument("camera", camera)
-	program.SetArgument("model", model)
-	program.SetArgument("tex", 0)
-
-	simpleProgram, err := newProgram(SimpleVertexShader, SimpleFragmentShader)
-	if err != nil {
-		panic(err)
-	}
-	simpleProgram.SetArgument("projection", projection)
-	simpleProgram.SetArgument("camera", camera)
-	simpleProgram.SetArgument("model", model)
-
-	// Load the texture
-	texture, err := newTexture("square.png")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
+	//model := mgl32.Ident4()
+	/*
+		// Load the texture
+		texture, err := newTexture("square.png")
+		if err != nil {
+			log.Fatalln(err)
+		}
+	*/
 	// Configure the vertex data
-	vertexBuf := gl2.NewArrayBuffer(cubeVertices, 5, gl2.StaticDrawBufferUsage)
+	//vertexBuf := gl2.NewArrayBuffer(cubeVertices, 5, gl2.StaticDrawBufferUsage)
 
-	program.SetArgument("vert",
-		gl2.MyBufferArg{vertexBuf, 3, 0},
-	)
-	program.SetArgument("vertTexCoord",
-		gl2.MyBufferArg{vertexBuf, 2, 3},
-	)
-	simpleProgram.SetArgument("vert",
-		gl2.MyBufferArg{vertexBuf, 3, 0},
-	)
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LESS)
-	gl.ClearColor(1.0, 0.9, 0.8, 0.7)
+	//gl.ClearColor(1.0, 0.9, 0.8, 0.7)
 
 	angle := 0.0
 	previousTime := glfw.GetTime()
 
+	coord := NewCoord()
+
+	heightMap := GenerateHeightMap(1000, 1000)
+	terrain := NewTerrain(heightMap)
+	//cube := new(Cube)
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -130,47 +129,45 @@ func main() {
 		doMovement(elapsed)
 
 		angle += elapsed
-		model = mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0})
+		//model = mgl32.Translate3D(-5, 1, 0).Mul4(mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0}))
 
 		camera = mainCamera.ViewMatrix()
-		program.SetArgument("camera", camera)
-		simpleProgram.SetArgument("camera", camera)
 
-		simpleModel := mgl32.Translate3D(-5, 0, 0).Mul4(model)
+		//simpleModel := mgl32.Translate3D(5, 1, 0)
 		// Render
-		program.SetArgument("model", model)
-		simpleProgram.SetArgument("model", simpleModel)
+		/*
+			gl.ActiveTexture(gl.TEXTURE0)
+			gl.BindTexture(gl.TEXTURE_2D, texture)
+			program.MustDraw(gl2.TrianglesDrawMode, vertexBuf, map[string]interface{}{
+				"vert":         gl2.BufferBind{Size: 3, Offset: 0},
+				"vertTexCoord": gl2.BufferBind{Size: 2, Offset: 3},
+				"model":        model,
+				"camera":       camera,
+				"projection":   projection,
+				"tex":          0,
+			})
+		*/
+		/*
+			programs.ColorOnly().MustDraw(gl2.TrianglesDrawMode, vertexBuf, map[string]interface{}{
+				"vert":       gl2.BufferBind{Size: 3, Offset: 0},
+				"model":      simpleModel,
+				"camera":     camera,
+				"projection": projection,
+				"Color":      mgl32.Vec4{1.0, 0.0, 0.0, 0.0},
+			})*/
 
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, texture)
-		program.DrawArray(vertexBuf)
+		coord.Draw(camera, projection)
+		terrain.Draw(mainCamera, projection)
 
-		simpleProgram.DrawArray(vertexBuf)
+		//cube.Draw(mainCamera, projection)
 		// Maintenance
 		window.SwapBuffers()
 		glfw.PollEvents()
-	}
-}
 
-func newProgram(vertexShaderSource, fragmentShaderSource string) (*gl2.Program, error) {
-	vertexShader, err := gl2.NewShader(gl2.VertexShaderKind, vertexShaderSource)
-	if err != nil {
-		return nil, err
+		windowWidth, windowHeight = window.GetSize()
+		projection = mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/float32(windowHeight), 0.1, 100.0)
+		gl.Viewport(0, 0, int32(windowWidth), int32(windowHeight))
 	}
-
-	fragmentShader, err := gl2.NewShader(gl2.FragmentShaderKind, fragmentShaderSource)
-	if err != nil {
-		return nil, err
-	}
-
-	program, err := gl2.NewProgram(vertexShader, fragmentShader)
-	if err != nil {
-		return nil, err
-	}
-	vertexShader.Delete()
-	fragmentShader.Delete()
-
-	return program, nil
 }
 
 func newTexture(file string) (uint32, error) {
@@ -210,6 +207,21 @@ func newTexture(file string) (uint32, error) {
 
 	return texture, nil
 }
+
+var vertexShader = `
+#version 330
+uniform mat4 projection;
+uniform mat4 camera;
+uniform mat4 model;
+in vec3 vert;
+in vec2 vertTexCoord;
+out vec2 fragTexCoord;
+
+void main() {
+    fragTexCoord = vertTexCoord;
+    gl_Position = projection * camera * model * vec4(vert, 1);
+}
+`
 
 var fragmentShader = `
 #version 330

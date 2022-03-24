@@ -2,95 +2,137 @@ package gl
 
 import (
 	"fmt"
-	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
+
+	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
 type Program struct {
 	Id uint32
 
-	args map[string]ProgramArgumentLocation
-	vaos map[*ArrayBuffer]*vao
+	InArgs, UniformArgs map[string]ProgramArgumentLocation
+	VAO                 map[*ArrayBuffer]*vao
 }
+
+const OutputParameterColor = "outputColor"
 
 // ProgramArgumentLocation is location of the program argument
 type ProgramArgumentLocation int32
 
-func NewProgram(shaders ...*Shader) (program *Program, err error) {
-	program = CreateProgram()
-	// Link shaders
-	for _, shader := range shaders {
-		program.AttachShader(shader)
+type DrawMode int
+
+const (
+	TrianglesDrawMode DrawMode = gl.TRIANGLES
+	LinesDrawMod               = gl.LINES
+)
+
+func NewProgram(sources map[ShaderKind]string) (program *Program, err error) {
+	// TODO: Check does it needed
+	if _, ok := sources[VertexShaderKind]; !ok {
+		err = fmt.Errorf("no vertex shader")
+		return
 	}
-	program.Link()
-	// Check if everything compiles correct
+	if _, ok := sources[FragmentShaderKind]; !ok {
+		err = fmt.Errorf("no fragment shader")
+		return
+	}
+
+	program = new(Program)
+	program.Id = gl.CreateProgram()
+	program.VAO = make(map[*ArrayBuffer]*vao)
+	outIn := glStrIn(OutputParameterColor)
+	gl.BindFragDataLocation(program.Id, 0, outIn())
+
+	shaders := make([]*Shader, 0, len(sources))
+	defer func() {
+		for _, shader := range shaders {
+			shader.Delete()
+		}
+	}()
+
+	for kind, source := range sources {
+		shader, _err := NewShader(kind, source)
+		if _err != nil {
+			err = _err
+			return
+		}
+		gl.AttachShader(program.Id, shader.Id)
+		shaders = append(shaders, shader)
+	}
+
+	gl.LinkProgram(program.Id)
 	if success := program.GetLinkStatus(); !success {
 		logLength := program.GetInfoLogLength()
 		infoLog := program.GetInfoLog(logLength)
 		program, err = nil, fmt.Errorf("failed to link program: %v", infoLog)
 	}
-	return
-}
 
-func (program *Program) SetArgumentByLocation(loc ProgramArgumentLocation, value interface{}) {
-	asWas := program.use()
-	defer asWas()
-
-	switch cast := value.(type) {
-	case mgl32.Mat4:
-		gl.UniformMatrix4fv(int32(loc), 1, false, &cast[0])
-	case int:
-		gl.Uniform1i(int32(loc), int32(cast))
-	case MyBufferArg:
-		vao, ok := program.vaos[cast.ArrayBuffer]
-		if !ok {
-			program.vaos[cast.ArrayBuffer] = NewVAO(cast.ArrayBuffer)
-			vao = program.vaos[cast.ArrayBuffer]
+	program.InArgs, program.UniformArgs = make(map[string]ProgramArgumentLocation), make(map[string]ProgramArgumentLocation)
+	for _, shader := range shaders {
+		uniform, in, out := shader.Args()
+		for _, arg := range uniform {
+			program.UniformArgs[arg] = program.UniformArgLocation(arg)
 		}
-		vao.LinkWithLocation(loc, cast.Size, cast.Offset)
+
+		if shader.Kind == VertexShaderKind {
+			for _, arg := range in {
+				program.InArgs[arg] = program.InputArgLocation(arg)
+			}
+		}
+
+		if shader.Kind == FragmentShaderKind {
+			if len(out) != 1 {
+				err = fmt.Errorf("incorrect out arguments number")
+				return
+			}
+			if out[0] != OutputParameterColor {
+				err = fmt.Errorf("incorrect output parameter color")
+				return
+			}
+		}
 	}
+	return
 }
 
-type MyBufferArg struct {
-	*ArrayBuffer
+type BufferBind struct {
 	Size, Offset int
 }
 
-func (program *Program) SetArgument(name string, value interface{}) {
-	argLoc, ok := program.args[name]
-	if !ok {
-		argLoc = program.UniformArgLocation(name)
-		program.args[name] = argLoc
-	}
-
-	var loc ProgramArgumentLocation
-	switch value.(type) {
-	case int, mgl32.Mat4:
-		loc = program.UniformArgLocation(name)
-	case MyBufferArg:
-		loc = program.InputArgLocation(name)
-	}
-	program.SetArgumentByLocation(loc, value)
-}
-
-type ArrayArgument struct {
-	Name         string
-	Size, Offset int
-}
-
-func (program *Program) DrawArray(buf *ArrayBuffer) (err error) {
+func (program *Program) MustDraw(mode DrawMode, buffer *ArrayBuffer, args map[string]interface{}) {
 	asWas := program.use()
 	defer asWas()
 
-	vao, ok := program.vaos[buf]
-	if !ok {
-		err = fmt.Errorf("array is unset as input argument")
-		return
+	// TODO: Add check for args
+	if len(args) != len(program.InArgs)+len(program.UniformArgs) {
+		panic("incorrect args number")
 	}
+
+	vao, ok := program.VAO[buffer]
+	if !ok {
+		program.VAO[buffer] = NewVAO(buffer)
+		vao = program.VAO[buffer]
+		for name, value := range args {
+			if cast, ok := value.(BufferBind); ok {
+				vao.LinkWithLocation(program.InArgs[name], cast.Size, cast.Offset)
+			}
+		}
+		program.VAO[buffer] = vao
+	}
+	for name, value := range args {
+		loc := program.UniformArgs[name]
+		switch cast := value.(type) {
+		case mgl32.Mat4:
+			gl.UniformMatrix4fv(int32(loc), 1, false, &cast[0])
+		case mgl32.Vec4:
+			gl.Uniform4fv(int32(loc), 1, &cast[0])
+		case int:
+			gl.Uniform1i(int32(loc), int32(cast))
+		}
+	}
+
 	vao.Bind()
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(buf.Buffer)/buf.Stride))
+	gl.DrawArrays(uint32(mode), 0, int32(len(buffer.Buffer)/buffer.Stride))
 	UnbindVAO()
-	return
 }
 
 func (program *Program) use() (asWas func()) {
@@ -106,38 +148,16 @@ func (program *Program) use() (asWas func()) {
 
 // GL Functions
 
-func CreateProgram() (program *Program) {
-	program = new(Program)
-	program.Id = gl.CreateProgram()
-	program.args = make(map[string]ProgramArgumentLocation)
-	program.vaos = make(map[*ArrayBuffer]*vao)
-
-	outIn := glStrIn("outputColor")
-	gl.BindFragDataLocation(program.Id, 0, outIn())
-	return
-}
-
-// UniformArgLocation returns the location of a uniform program argument
-//
-// An argument is uniform if every video-card processor have the same value of the argument
 func (program *Program) UniformArgLocation(name string) (loc ProgramArgumentLocation) {
 	nameIn := glStrIn(name)
 	loc = ProgramArgumentLocation(gl.GetUniformLocation(program.Id, nameIn()))
 	return
 }
 
-// InputArgLocation returns the location of an input program argument
-//
-// An argument is input if every video-card processor have its own argument (for example,
-// with vertex array binding).
 func (program *Program) InputArgLocation(name string) (loc ProgramArgumentLocation) {
 	nameIn := glStrIn(name)
 	loc = ProgramArgumentLocation(gl.GetAttribLocation(program.Id, nameIn()))
 	return
-}
-
-func (program *Program) AttachShader(shader *Shader) {
-	gl.AttachShader(program.Id, shader.Id)
 }
 
 type ProgramProperty uint32
@@ -167,8 +187,4 @@ func (program *Program) GetInfoLog(maxLength int) (log string) {
 func (program *Program) GetLinkStatus() (success bool) {
 	success = toBool(program.Getiv(LinkStatusProgramProperty))
 	return
-}
-
-func (program *Program) Link() {
-	gl.LinkProgram(program.Id)
 }
