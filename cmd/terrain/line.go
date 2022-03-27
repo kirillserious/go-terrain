@@ -2,8 +2,8 @@ package main
 
 import (
 	mgl "github.com/go-gl/mathgl/mgl32"
-	gl2 "terrain/cmd/example/gl"
-	"terrain/cmd/example/programs"
+	"terrain/internal/gl"
+	"terrain/internal/programs"
 )
 
 type Line struct {
@@ -18,13 +18,13 @@ var LineVertices = []float32{
 	0, 0, 1,
 }
 
-var LineVertexBuffer = func() func() *gl2.ArrayBuffer {
-	var buffer *gl2.ArrayBuffer
-	return func() *gl2.ArrayBuffer {
+var LineVertexBuffer = func() func() *gl.ArrayBuffer {
+	var buffer *gl.ArrayBuffer
+	return func() *gl.ArrayBuffer {
 		if buffer != nil {
 			return buffer
 		}
-		buffer = gl2.NewArrayBuffer(LineVertices, 3, gl2.StaticDrawBufferUsage)
+		buffer = gl.NewArrayBuffer(LineVertices, 3, gl.StaticDrawBufferUsage)
 		return buffer
 	}
 }()
@@ -47,8 +47,8 @@ func (line *Line) SetColor(color mgl.Vec4) {
 }
 
 func (line *Line) Draw(view, projection mgl.Mat4) {
-	programs.ColorOnly().MustDraw(gl2.LinesDrawMod, LineVertexBuffer(), map[string]interface{}{
-		"vert":       gl2.BufferBind{Size: 3, Offset: 0},
+	programs.ColorOnly().MustDraw(gl.LinesDrawMod, LineVertexBuffer(), map[string]interface{}{
+		"vert":       gl.BufferBind{Size: 3, Offset: 0},
 		"model":      line.model,
 		"camera":     view,
 		"projection": projection,

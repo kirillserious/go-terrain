@@ -7,6 +7,7 @@ type ArrayBuffer struct {
 	Id     uint32
 	Buffer []float32
 	Stride int
+	Usage  BufferUsage
 }
 
 type BufferUsage uint32
@@ -18,10 +19,7 @@ const (
 func NewArrayBuffer(buf []float32, stride int, usage BufferUsage) (arrBuf *ArrayBuffer) {
 	arrBuf = new(ArrayBuffer)
 	arrBuf.Buffer = buf
-	gl.GenBuffers(1, &arrBuf.Id)
-	gl.BindBuffer(gl.ARRAY_BUFFER, arrBuf.Id)
-	gl.BufferData(gl.ARRAY_BUFFER, len(arrBuf.Buffer)*sizeOfFloat, gl.Ptr(arrBuf.Buffer), uint32(usage))
-	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	arrBuf.Usage = usage
 	arrBuf.Stride = stride
 	return
 }
@@ -29,6 +27,15 @@ func NewArrayBuffer(buf []float32, stride int, usage BufferUsage) (arrBuf *Array
 // GL Functions
 
 func (buf *ArrayBuffer) Bind() {
+	if buf.Id == 0 {
+		gl.GenBuffers(1, &buf.Id)
+		gl.BindBuffer(gl.ARRAY_BUFFER, buf.Id)
+		gl.BufferData(gl.ARRAY_BUFFER,
+			len(buf.Buffer)*sizeOfFloat,
+			gl.Ptr(buf.Buffer),
+			uint32(buf.Usage))
+		return
+	}
 	gl.BindBuffer(gl.ARRAY_BUFFER, buf.Id)
 }
 

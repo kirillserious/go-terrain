@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/go-gl/mathgl/mgl32"
-	"terrain/cmd/example/gl"
-	"terrain/cmd/example/programs"
+	gl2 "terrain/internal/gl"
+	"terrain/internal/programs"
 )
 
 func AddNormals(in []float32) (out []float32) {
@@ -80,14 +80,14 @@ var CubeVertices = []float32{
 	1.0, 1.0, 1.0,
 }
 
-var LasyCubeBuffer = func() func() *gl.ArrayBuffer {
+var LasyCubeBuffer = func() func() *gl2.ArrayBuffer {
 	withNormals := AddNormals(CubeVertices)
-	var buffer *gl.ArrayBuffer
-	return func() *gl.ArrayBuffer {
+	var buffer *gl2.ArrayBuffer
+	return func() *gl2.ArrayBuffer {
 		if buffer != nil {
 			return buffer
 		}
-		buffer = gl.NewArrayBuffer(withNormals, 6, gl.StaticDrawBufferUsage)
+		buffer = gl2.NewArrayBuffer(withNormals, 6, gl2.StaticDrawBufferUsage)
 		return buffer
 	}
 }()
@@ -95,9 +95,9 @@ var LasyCubeBuffer = func() func() *gl.ArrayBuffer {
 type Cube struct{}
 
 func (cube *Cube) Draw(camera Camera, projection mgl32.Mat4) {
-	programs.Phong().MustDraw(gl.TrianglesDrawMode, LasyCubeBuffer(), map[string]interface{}{
-		"vert":       gl.BufferBind{Size: 3, Offset: 0},
-		"normal":     gl.BufferBind{Size: 3, Offset: 3},
+	programs.Phong().MustDraw(gl2.TrianglesDrawMode, LasyCubeBuffer(), map[string]interface{}{
+		"vert":       gl2.BufferBind{Size: 3, Offset: 0},
+		"normal":     gl2.BufferBind{Size: 3, Offset: 3},
 		"model":      mgl32.Ident4(),
 		"camera":     camera.ViewMatrix(),
 		"projection": projection,

@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/go-gl/mathgl/mgl32"
-	"terrain/cmd/example/gl"
-	"terrain/cmd/example/programs"
+	gl2 "terrain/internal/gl"
+	"terrain/internal/programs"
 )
 
 type HeightMap struct {
@@ -11,18 +11,8 @@ type HeightMap struct {
 	Stride  int
 }
 
-var MyHeightMap = HeightMap{
-	Stride: 5,
-	Heights: []float32{
-		0, 1, 3, 0, 2,
-		0, 1, 3, 0, 2,
-		0, 1, 3, 0, 2,
-		0, 1, 3, 0, 2,
-	},
-}
-
 type Terrain struct {
-	buf *gl.ArrayBuffer
+	buf *gl2.ArrayBuffer
 }
 
 func NewTerrain(heights *HeightMap) (terrain *Terrain) {
@@ -47,15 +37,15 @@ func NewTerrain(heights *HeightMap) (terrain *Terrain) {
 		}
 	}
 
-	terrain.buf = gl.NewArrayBuffer(AddNormals(vertices), 6, gl.StaticDrawBufferUsage)
+	terrain.buf = gl2.NewArrayBuffer(AddNormals(vertices), 6, gl2.StaticDrawBufferUsage)
 	return
 }
 
 func (terrain *Terrain) Draw(camera Camera, projection mgl32.Mat4) {
-	programs.Phong().MustDraw(gl.TrianglesDrawMode, terrain.buf, map[string]interface{}{
-		"vert":       gl.BufferBind{Size: 3, Offset: 0},
-		"normal":     gl.BufferBind{Size: 3, Offset: 3},
-		"model":      mgl32.Scale3D(0.05, 0.05, 0.05),
+	programs.Phong().MustDraw(gl2.TrianglesDrawMode, terrain.buf, map[string]interface{}{
+		"vert":       gl2.BufferBind{Size: 3, Offset: 0},
+		"normal":     gl2.BufferBind{Size: 3, Offset: 3},
+		"model":      mgl32.Scale3D(0.025, 0.025, 0.025),
 		"camera":     camera.ViewMatrix(),
 		"projection": projection,
 		"viewPos":    camera.Position,
