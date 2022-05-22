@@ -13,7 +13,6 @@ import (
 	"image/draw"
 	_ "image/png"
 	"os"
-	"runtime"
 	"terrain/internal"
 	gl2 "terrain/internal/gl"
 	"unsafe"
@@ -21,16 +20,10 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
-	log "github.com/sirupsen/logrus"
 )
 
 var windowWidth = 800
 var windowHeight = 600
-
-func init() {
-	// GLFW event handling must run on the main OS thread
-	runtime.LockOSThread()
-}
 
 var mainCamera = internal.Camera{
 	Position: mgl32.Vec3{10, 10, 10}, WorldUp: mgl32.Vec3{0, 1, 0},
@@ -55,36 +48,11 @@ func debugCb(
 }
 
 func main() {
-	if err := glfw.Init(); err != nil {
-		log.Fatalln("failed to initialize glfw:", err)
-	}
-	defer glfw.Terminate()
-
-	glfw.WindowHint(glfw.Resizable, glfw.True)
-	glfw.WindowHint(glfw.ContextVersionMajor, 4)
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	window, err := internal.CreateWindow(windowWidth, windowHeight)
-	if err != nil {
-		panic(err)
-	}
-	window.MakeContextCurrent()
-
-	window.SetKeyCallback(keyCallback())
-	window.SetCursorPosCallback(cursorCallback)
-
-	// Initialize Glow
-	if err := gl.Init(); err != nil {
-		panic(err)
-	}
-
-	log.Infof("OpenGL version: %s", gl2.GetVersion())
+	window, terminate := internal.NewWindow(windowWidth, windowHeight)
+	defer terminate()
 
 	gl.Enable(gl.DEBUG_OUTPUT)
 	gl.DebugMessageCallback(debugCb, unsafe.Pointer(nil))
-
-	gl.Viewport(0, 0, int32(windowWidth), int32(windowHeight))
 
 	/*
 		program, err := gl2.NewProgram(map[gl2.ShaderKind]string{
@@ -95,9 +63,6 @@ func main() {
 			panic(err)
 		}
 	*/
-	near, far := float32(0.1), float32(100)
-	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/float32(windowHeight), near, far)
-	camera := mainCamera.ViewMatrix()
 	//model := mgl32.Ident4()
 	/*
 		// Load the texture
@@ -109,35 +74,20 @@ func main() {
 	// Configure the vertex data
 	//vertexBuf := gl2.NewArrayBuffer(cubeVertices, 5, gl2.StaticDrawBufferUsage)
 
-	// Configure global settings
-	gl.Enable(gl.DEPTH_TEST)
-	gl.DepthFunc(gl.LESS)
-	//gl.ClearColor(1.0, 0.9, 0.8, 0.7)
-
 	angle := 0.0
-	previousTime := glfw.GetTime()
 
 	coord := internal.NewCoord()
 
 	heightMap := internal.GenerateHeightMap(1000, 1000)
 	terrain := internal.NewTerrain(heightMap)
-	for !window.ShouldClose() {
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	window.Render(func() {
+		coord.Draw(window.Camera().ViewMatrix(), window.Projection())
+		terrain.Draw(window.Camera(), window.Projection())
 
-		windowWidth, windowHeight = window.GetSize()
-		projection = mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/float32(windowHeight), near, far)
-		gl.Viewport(0, 0, int32(windowWidth), int32(windowHeight))
-
-		// Update
-		time := glfw.GetTime()
-		elapsed := time - previousTime
-		previousTime = time
-		doMovement(elapsed)
-
-		angle += elapsed
+		angle += window.DeltaTime()
 		//model = mgl32.Translate3D(-5, 1, 0).Mul4(mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0}))
 
-		camera = mainCamera.ViewMatrix()
+		//camera = mainCamera.ViewMatrix()
 		//cursorRayPos, cursorRayDir := mgl32.UnProject()
 
 		//simpleModel := mgl32.Translate3D(5, 1, 0)
@@ -163,13 +113,7 @@ func main() {
 				"Color":      mgl32.Vec4{1.0, 0.0, 0.0, 0.0},
 			})*/
 
-		coord.Draw(camera, projection)
-		terrain.Draw(mainCamera, projection)
-
-		// Maintenance
-		window.SwapBuffers()
-		glfw.PollEvents()
-	}
+	})
 }
 
 func newTexture(file string) (uint32, error) {
@@ -330,12 +274,12 @@ func doMovement(delta float64) {
 
 var PressedKeys = map[glfw.Key]struct{}{}
 
-func keyCallback() internal.KeyCallback {
+func keyCallback() gl2.KeyCallback {
 	var (
 		fullScreen                                bool
 		prevXPos, prevYPos, prevHeight, prevWidth int
 	)
-	return func(window *internal.Window, key glfw.Key, action glfw.Action) {
+	return func(window *gl2.Window, key glfw.Key, action glfw.Action) {
 		if key == glfw.KeyEscape && action == glfw.Press {
 			window.SetShouldClose(true)
 			return
@@ -346,7 +290,7 @@ func keyCallback() internal.KeyCallback {
 			} else {
 				prevXPos, prevYPos = window.GetPos()
 				prevWidth, prevHeight = window.GetSize()
-				window.FullScreen(internal.GetPrimaryMonitor())
+				window.FullScreen(gl2.GetPrimaryMonitor())
 			}
 			fullScreen = !fullScreen
 		}

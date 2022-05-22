@@ -2,9 +2,11 @@ package internal
 
 import (
 	"encoding/json"
-	perlin "github.com/aquilax/go-perlin"
+	"github.com/aquilax/go-perlin"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 )
@@ -37,6 +39,18 @@ func GenerateHeightMap(iMax, jMax int) (heights *HeightMap) {
 	return
 }
 
+func LoadHeightMap(filePath string) (heights *HeightMap) {
+	file, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		log.WithError(err).Panic("failed to load height map from file")
+	}
+	heights = new(HeightMap)
+	if err = json.Unmarshal([]byte(file), heights); err != nil {
+		log.WithError(err).Panic("failed to load height map from file")
+	}
+	return
+}
+
 // Flush writes the height map data into the provided writer
 func (hm *HeightMap) Flush(writer io.Writer) (err error) {
 	l := log.WithField("fcn", "(*HeightMap)Flush")
@@ -46,7 +60,18 @@ func (hm *HeightMap) Flush(writer io.Writer) (err error) {
 		l.WithError(err).Error("Failed to marshal the heights data")
 		return
 	}
-	writer.Write(data)
+	_, err = writer.Write(data)
+	return
+}
+
+func (hm *HeightMap) FlushToFile(path string) (err error) {
+	file, err := os.Create(path)
+	if err != nil {
+		log.WithError(err).Error("Failed to open the destination file")
+		return
+	}
+	defer file.Close()
+	err = hm.Flush(file)
 	return
 }
 

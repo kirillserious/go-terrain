@@ -14,7 +14,6 @@ func NewTerrain(heights *HeightMap) (terrain *Terrain) {
 	terrain = new(Terrain)
 	iMax, jMax := len(heights.Heights)/heights.Stride, heights.Stride
 	vertices := make([]float32, (iMax-1)*(jMax-1)*6*3)
-	//fmt.Printf("%v %v\n", len(heights.Heights), (heights.Stride-1)*(heights.Stride-1)*6*3)
 	for i := 0; i < iMax-1; i++ {
 		for j := 0; j < jMax-1; j++ {
 			h1 := heights.Heights[i*jMax+j]
@@ -36,7 +35,7 @@ func NewTerrain(heights *HeightMap) (terrain *Terrain) {
 	return
 }
 
-func (terrain *Terrain) Draw(camera Camera, projection mgl32.Mat4) {
+func (terrain *Terrain) Draw(camera *Camera, projection mgl32.Mat4) {
 	programs.Phong().MustDraw(gl2.TrianglesDrawMode, terrain.buf, map[string]interface{}{
 		"vert":       gl2.BufferBind{Size: 3, Offset: 0},
 		"normal":     gl2.BufferBind{Size: 3, Offset: 3},
