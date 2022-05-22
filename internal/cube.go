@@ -95,13 +95,17 @@ var LasyCubeBuffer = func() func() *gl2.ArrayBuffer {
 type Cube struct{}
 
 func (cube *Cube) Draw(camera Camera, projection mgl32.Mat4) {
-	programs.Phong().MustDraw(gl2.TrianglesDrawMode, LasyCubeBuffer(), map[string]interface{}{
-		"vert":       gl2.BufferBind{Size: 3, Offset: 0},
-		"normal":     gl2.BufferBind{Size: 3, Offset: 3},
-		"model":      mgl32.Ident4(),
-		"camera":     camera.ViewMatrix(),
-		"projection": projection,
-		"viewPos":    camera.Position,
-		"Color":      mgl32.Vec4{1.0, 0.5, 0.31, 1.0},
-	})
+	programs.Phong().MustDraw(gl2.TrianglesDrawMode,
+		LasyCubeBuffer(),
+		nil,
+		map[string]interface{}{
+			"vert":       gl2.BufferBind{Size: 3, Offset: 0},
+			"normal":     gl2.BufferBind{Size: 3, Offset: 3},
+			"model":      mgl32.Ident4(),
+			"camera":     camera.ViewMatrix(),
+			"projection": projection,
+			"viewPos":    camera.Position,
+			"Color":      mgl32.Vec4{1.0, 0.5, 0.31, 1.0},
+		},
+	)
 }

@@ -47,11 +47,15 @@ func (line *Line) SetColor(color mgl.Vec4) {
 }
 
 func (line *Line) Draw(view, projection mgl.Mat4) {
-	programs.ColorOnly().MustDraw(gl.LinesDrawMod, LineVertexBuffer(), map[string]interface{}{
-		"vert":       gl.BufferBind{Size: 3, Offset: 0},
-		"model":      line.model,
-		"camera":     view,
-		"projection": projection,
-		"Color":      line.color,
-	})
+	programs.ColorOnly().MustDraw(gl.LinesDrawMod,
+		LineVertexBuffer(),
+		nil,
+		map[string]interface{}{
+			"vert":       gl.BufferBind{Size: 3, Offset: 0},
+			"model":      line.model,
+			"camera":     view,
+			"projection": projection,
+			"Color":      line.color,
+		},
+	)
 }

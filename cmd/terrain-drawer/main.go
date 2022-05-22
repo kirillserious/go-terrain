@@ -4,6 +4,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"os"
 	"terrain/internal"
+	gl2 "terrain/internal/gl"
 )
 
 var opts = struct {
@@ -16,11 +17,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	heights := internal.LoadHeightMap(opts.HeightMap)
-	terrain := internal.NewTerrain(heights)
-
 	window, terminate := internal.NewWindow(800, 600)
 	defer terminate()
+
+	heights := internal.LoadHeightMap(opts.HeightMap)
+	texture := gl2.NewTextureFromFile("../terrain/untitled.png")
+
+	terrain := internal.NewTerrain2(heights, texture)
 
 	window.Render(func() {
 		terrain.Draw(window.Camera(), window.Projection())

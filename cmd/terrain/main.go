@@ -9,27 +9,16 @@ import (
 	_ "embed"
 	"fmt"
 	"go/build"
-	"image"
-	"image/draw"
-	_ "image/png"
-	"os"
 	"terrain/internal"
 	gl2 "terrain/internal/gl"
 	"unsafe"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 )
 
 var windowWidth = 800
 var windowHeight = 600
-
-var mainCamera = internal.Camera{
-	Position: mgl32.Vec3{10, 10, 10}, WorldUp: mgl32.Vec3{0, 1, 0},
-	Yaw: 0, Pitch: 0, Zoom: 0,
-	MovementSpeed: 30, RotationSpeed: 100,
-}
 
 func debugCb(
 	source uint32,
@@ -54,56 +43,53 @@ func main() {
 	gl.Enable(gl.DEBUG_OUTPUT)
 	gl.DebugMessageCallback(debugCb, unsafe.Pointer(nil))
 
-	/*
-		program, err := gl2.NewProgram(map[gl2.ShaderKind]string{
-			gl2.VertexShaderKind:   vertexShader,
-			gl2.FragmentShaderKind: fragmentShader,
-		})
-		if err != nil {
-			panic(err)
-		}
-	*/
-	//model := mgl32.Ident4()
-	/*
-		// Load the texture
-		texture, err := newTexture("square.png")
-		if err != nil {
-			log.Fatalln(err)
-		}
-	*/
+	program, err := gl2.NewProgram(map[gl2.ShaderKind]string{
+		gl2.VertexShaderKind:   vertexShader,
+		gl2.FragmentShaderKind: fragmentShader,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	model := mgl32.Ident4()
+
+	// Load the texture
+	texture := gl2.NewTextureFromFile("untitled.png")
 	// Configure the vertex data
-	//vertexBuf := gl2.NewArrayBuffer(cubeVertices, 5, gl2.StaticDrawBufferUsage)
+	vertexBuf := gl2.NewArrayBuffer(cubeVertices, 5, gl2.StaticDrawBufferUsage)
 
 	angle := 0.0
 
 	coord := internal.NewCoord()
 
 	heightMap := internal.GenerateHeightMap(1000, 1000)
-	terrain := internal.NewTerrain(heightMap)
+	terrain := internal.NewTerrain2(heightMap, texture)
 	window.Render(func() {
 		coord.Draw(window.Camera().ViewMatrix(), window.Projection())
 		terrain.Draw(window.Camera(), window.Projection())
 
 		angle += window.DeltaTime()
-		//model = mgl32.Translate3D(-5, 1, 0).Mul4(mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0}))
+		model = mgl32.Translate3D(-5, 1, 0).Mul4(mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0}))
 
 		//camera = mainCamera.ViewMatrix()
 		//cursorRayPos, cursorRayDir := mgl32.UnProject()
 
 		//simpleModel := mgl32.Translate3D(5, 1, 0)
 		// Render
-		/*
-			gl.ActiveTexture(gl.TEXTURE0)
-			gl.BindTexture(gl.TEXTURE_2D, texture)
-			program.MustDraw(gl2.TrianglesDrawMode, vertexBuf, map[string]interface{}{
+
+		//texture.Bind()
+		program.MustDraw(gl2.TrianglesDrawMode,
+			vertexBuf,
+			texture,
+			map[string]interface{}{
 				"vert":         gl2.BufferBind{Size: 3, Offset: 0},
 				"vertTexCoord": gl2.BufferBind{Size: 2, Offset: 3},
 				"model":        model,
-				"camera":       camera,
-				"projection":   projection,
+				"camera":       window.Camera().ViewMatrix(),
+				"projection":   window.Projection(),
 				"tex":          0,
 			})
-		*/
+
 		/*
 			programs.ColorOnly().MustDraw(gl2.TrianglesDrawMode, vertexBuf, map[string]interface{}{
 				"vert":       gl2.BufferBind{Size: 3, Offset: 0},
@@ -114,44 +100,6 @@ func main() {
 			})*/
 
 	})
-}
-
-func newTexture(file string) (uint32, error) {
-	imgFile, err := os.Open(file)
-	if err != nil {
-		return 0, fmt.Errorf("texture %q not found on disk: %v", file, err)
-	}
-	img, _, err := image.Decode(imgFile)
-	if err != nil {
-		return 0, err
-	}
-
-	rgba := image.NewRGBA(img.Bounds())
-	if rgba.Stride != rgba.Rect.Size().X*4 {
-		return 0, fmt.Errorf("unsupported stride")
-	}
-	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
-
-	var texture uint32
-	gl.GenTextures(1, &texture)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, texture)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexImage2D(
-		gl.TEXTURE_2D,
-		0,
-		gl.RGBA,
-		int32(rgba.Rect.Size().X),
-		int32(rgba.Rect.Size().Y),
-		0,
-		gl.RGBA,
-		gl.UNSIGNED_BYTE,
-		gl.Ptr(rgba.Pix))
-
-	return texture, nil
 }
 
 var vertexShader = `
@@ -251,60 +199,4 @@ func importPathToDir(importPath string) (string, error) {
 		return "", err
 	}
 	return p.Dir, nil
-}
-
-var movementMap = map[glfw.Key]internal.Direction{
-	glfw.KeyW: internal.ForwardDirection,
-	glfw.KeyS: internal.BackwardDirection,
-	glfw.KeyA: internal.LeftDirection,
-	glfw.KeyD: internal.RightDirection,
-	glfw.KeyR: internal.UpRotation,
-	glfw.KeyF: internal.DownRotation,
-	glfw.KeyQ: internal.LeftRotation,
-	glfw.KeyE: internal.RightRotation,
-}
-
-func doMovement(delta float64) {
-	for key, direction := range movementMap {
-		if _, ok := PressedKeys[key]; ok {
-			mainCamera.Move(delta, direction)
-		}
-	}
-}
-
-var PressedKeys = map[glfw.Key]struct{}{}
-
-func keyCallback() gl2.KeyCallback {
-	var (
-		fullScreen                                bool
-		prevXPos, prevYPos, prevHeight, prevWidth int
-	)
-	return func(window *gl2.Window, key glfw.Key, action glfw.Action) {
-		if key == glfw.KeyEscape && action == glfw.Press {
-			window.SetShouldClose(true)
-			return
-		}
-		if key == glfw.KeyF11 && action == glfw.Press {
-			if fullScreen {
-				window.UnFullScreen(prevXPos, prevYPos, prevWidth, prevHeight)
-			} else {
-				prevXPos, prevYPos = window.GetPos()
-				prevWidth, prevHeight = window.GetSize()
-				window.FullScreen(gl2.GetPrimaryMonitor())
-			}
-			fullScreen = !fullScreen
-		}
-		switch action {
-		case glfw.Press:
-			PressedKeys[key] = struct{}{}
-		case glfw.Release:
-			delete(PressedKeys, key)
-		}
-	}
-}
-
-var CursorX, CursorY float64
-
-func cursorCallback(_ *glfw.Window, xPos float64, yPos float64) {
-	CursorX, CursorY = xPos, yPos
 }

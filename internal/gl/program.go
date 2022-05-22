@@ -98,7 +98,11 @@ type BufferBind struct {
 	Size, Offset int
 }
 
-func (program *Program) MustDraw(mode DrawMode, buffer *ArrayBuffer, args map[string]interface{}) {
+func (program *Program) MustDraw(mode DrawMode,
+	buffer *ArrayBuffer, // required
+	texture *Texture, // optional
+	args map[string]interface{},
+) {
 	asWas := program.use()
 	defer asWas()
 
@@ -130,6 +134,9 @@ func (program *Program) MustDraw(mode DrawMode, buffer *ArrayBuffer, args map[st
 		}
 	}
 
+	if texture != nil {
+		texture.Bind()
+	}
 	vao.Bind()
 	gl.DrawArrays(uint32(mode), 0, int32(len(buffer.Buffer)/buffer.Stride))
 	UnbindVAO()

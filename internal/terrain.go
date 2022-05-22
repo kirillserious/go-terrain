@@ -36,13 +36,17 @@ func NewTerrain(heights *HeightMap) (terrain *Terrain) {
 }
 
 func (terrain *Terrain) Draw(camera *Camera, projection mgl32.Mat4) {
-	programs.Phong().MustDraw(gl2.TrianglesDrawMode, terrain.buf, map[string]interface{}{
-		"vert":       gl2.BufferBind{Size: 3, Offset: 0},
-		"normal":     gl2.BufferBind{Size: 3, Offset: 3},
-		"model":      mgl32.Scale3D(0.025, 0.025, 0.025),
-		"camera":     camera.ViewMatrix(),
-		"projection": projection,
-		"viewPos":    camera.Position,
-		"Color":      mgl32.Vec4{0.4, 0.6, 0.0, 1.0},
-	})
+	programs.Phong().MustDraw(gl2.TrianglesDrawMode,
+		terrain.buf,
+		nil,
+		map[string]interface{}{
+			"vert":       gl2.BufferBind{Size: 3, Offset: 0},
+			"normal":     gl2.BufferBind{Size: 3, Offset: 3},
+			"model":      mgl32.Scale3D(0.025, 0.025, 0.025),
+			"camera":     camera.ViewMatrix(),
+			"projection": projection,
+			"viewPos":    camera.Position,
+			"Color":      mgl32.Vec4{0.4, 0.6, 0.0, 1.0},
+		},
+	)
 }

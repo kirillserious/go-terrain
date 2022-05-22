@@ -51,6 +51,11 @@ func LoadHeightMap(filePath string) (heights *HeightMap) {
 	return
 }
 
+func (hm *HeightMap) Bounds() (iMax, jMax int) {
+	iMax, jMax = len(hm.Heights)/hm.Stride, hm.Stride
+	return
+}
+
 // Flush writes the height map data into the provided writer
 func (hm *HeightMap) Flush(writer io.Writer) (err error) {
 	l := log.WithField("fcn", "(*HeightMap)Flush")
