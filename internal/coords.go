@@ -1,6 +1,8 @@
-package main
+package internal
 
-import mgl "github.com/go-gl/mathgl/mgl32"
+import (
+	mgl "github.com/go-gl/mathgl/mgl32"
+)
 
 type Coord struct {
 	xLine, yLine, zLine *Line

@@ -1,10 +1,18 @@
-package main
+package internal
 
 import (
+	"encoding/json"
 	perlin "github.com/aquilax/go-perlin"
+	log "github.com/sirupsen/logrus"
+	"io"
 	"sync"
 	"time"
 )
+
+type HeightMap struct {
+	Heights []float32
+	Stride  int
+}
 
 func GenerateHeightMap(iMax, jMax int) (heights *HeightMap) {
 	heights = new(HeightMap)
@@ -26,6 +34,19 @@ func GenerateHeightMap(iMax, jMax int) (heights *HeightMap) {
 			heights.Heights[i*jMax+j] *= float32(jMax) / 50
 		})
 	}
+	return
+}
+
+// Flush writes the height map data into the provided writer
+func (hm *HeightMap) Flush(writer io.Writer) (err error) {
+	l := log.WithField("fcn", "(*HeightMap)Flush")
+
+	data, err := json.Marshal(hm)
+	if err != nil {
+		l.WithError(err).Error("Failed to marshal the heights data")
+		return
+	}
+	writer.Write(data)
 	return
 }
 

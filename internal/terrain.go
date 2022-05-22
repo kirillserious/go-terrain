@@ -1,15 +1,10 @@
-package main
+package internal
 
 import (
 	"github.com/go-gl/mathgl/mgl32"
 	gl2 "terrain/internal/gl"
 	"terrain/internal/programs"
 )
-
-type HeightMap struct {
-	Heights []float32
-	Stride  int
-}
 
 type Terrain struct {
 	buf *gl2.ArrayBuffer

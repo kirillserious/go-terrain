@@ -14,6 +14,7 @@ import (
 	_ "image/png"
 	"os"
 	"runtime"
+	"terrain/internal"
 	gl2 "terrain/internal/gl"
 	"unsafe"
 
@@ -31,7 +32,7 @@ func init() {
 	runtime.LockOSThread()
 }
 
-var mainCamera = Camera{
+var mainCamera = internal.Camera{
 	Position: mgl32.Vec3{10, 10, 10}, WorldUp: mgl32.Vec3{0, 1, 0},
 	Yaw: 0, Pitch: 0, Zoom: 0,
 	MovementSpeed: 30, RotationSpeed: 100,
@@ -64,7 +65,7 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	window, err := CreateWindow()
+	window, err := internal.CreateWindow(windowWidth, windowHeight)
 	if err != nil {
 		panic(err)
 	}
@@ -116,10 +117,10 @@ func main() {
 	angle := 0.0
 	previousTime := glfw.GetTime()
 
-	coord := NewCoord()
+	coord := internal.NewCoord()
 
-	heightMap := GenerateHeightMap(1000, 1000)
-	terrain := NewTerrain(heightMap)
+	heightMap := internal.GenerateHeightMap(1000, 1000)
+	terrain := internal.NewTerrain(heightMap)
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -308,15 +309,15 @@ func importPathToDir(importPath string) (string, error) {
 	return p.Dir, nil
 }
 
-var movementMap = map[glfw.Key]Direction{
-	glfw.KeyW: ForwardDirection,
-	glfw.KeyS: BackwardDirection,
-	glfw.KeyA: LeftDirection,
-	glfw.KeyD: RightDirection,
-	glfw.KeyR: UpRotation,
-	glfw.KeyF: DownRotation,
-	glfw.KeyQ: LeftRotation,
-	glfw.KeyE: RightRotation,
+var movementMap = map[glfw.Key]internal.Direction{
+	glfw.KeyW: internal.ForwardDirection,
+	glfw.KeyS: internal.BackwardDirection,
+	glfw.KeyA: internal.LeftDirection,
+	glfw.KeyD: internal.RightDirection,
+	glfw.KeyR: internal.UpRotation,
+	glfw.KeyF: internal.DownRotation,
+	glfw.KeyQ: internal.LeftRotation,
+	glfw.KeyE: internal.RightRotation,
 }
 
 func doMovement(delta float64) {
@@ -329,12 +330,12 @@ func doMovement(delta float64) {
 
 var PressedKeys = map[glfw.Key]struct{}{}
 
-func keyCallback() KeyCallback {
+func keyCallback() internal.KeyCallback {
 	var (
 		fullScreen                                bool
 		prevXPos, prevYPos, prevHeight, prevWidth int
 	)
-	return func(window *Window, key glfw.Key, action glfw.Action) {
+	return func(window *internal.Window, key glfw.Key, action glfw.Action) {
 		if key == glfw.KeyEscape && action == glfw.Press {
 			window.SetShouldClose(true)
 			return
@@ -345,7 +346,7 @@ func keyCallback() KeyCallback {
 			} else {
 				prevXPos, prevYPos = window.GetPos()
 				prevWidth, prevHeight = window.GetSize()
-				window.FullScreen(GetPrimaryMonitor())
+				window.FullScreen(internal.GetPrimaryMonitor())
 			}
 			fullScreen = !fullScreen
 		}

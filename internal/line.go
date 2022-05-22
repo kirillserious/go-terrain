@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	mgl "github.com/go-gl/mathgl/mgl32"

@@ -1,6 +1,8 @@
-package main
+package internal
 
-import "github.com/go-gl/glfw/v3.3/glfw"
+import (
+	"github.com/go-gl/glfw/v3.3/glfw"
+)
 
 type Monitor struct {
 	*glfw.Monitor
@@ -17,9 +19,9 @@ type Window struct {
 	*glfw.Window
 }
 
-func CreateWindow() (w *Window, err error) {
+func CreateWindow(width, height int) (w *Window, err error) {
 	w = new(Window)
-	w.Window, err = glfw.CreateWindow(windowWidth, windowHeight, "Cube", nil, nil)
+	w.Window, err = glfw.CreateWindow(width, height, "Cube", nil, nil)
 	return
 }
 
