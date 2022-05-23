@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	pb "github.com/cheggaaa/pb/v3"
+	"github.com/cheggaaa/pb/v3"
 	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"runtime"
 	"terrain/internal"
 	algo "terrain/internal/algorithms"
 	"terrain/internal/common"
@@ -42,41 +43,55 @@ func main() {
 	}
 	dists.SetAt(opts.ToI, opts.ToJ, 0)
 
+	numCPU := runtime.NumCPU()
+
 	bar := pb.StartNew(iMax * jMax)
 	bar.SetTemplateString(`{{ bar . }} {{percent .}} {{ rtime .}} {{ etime . }}`)
-
 	stop := iMax*jMax - 2
 	for k := 0; k < stop; k++ {
 		bar.Increment()
-		for i := 0; i < iMax; i++ {
-			for j := 0; j < jMax; j++ {
-				dist := dists.At(i, j)
-				if dist < -0.5 {
-					continue
+		batchLock := make([]bool, numCPU)
+		internal.ParallelFor(0, numCPU, 1, func(numBatch int) {
+			iFrom := iMax / numCPU * numBatch
+			iTo := iMax / numCPU * (numBatch + 1)
+			if numBatch == numCPU-1 {
+				iTo = iMax
+			}
+			for i := iFrom; i < iTo; i++ {
+				if i == iTo-1 && numBatch != numCPU-1 {
+					for !batchLock[numBatch+1] {
+					}
 				}
-				for dir := 0; dir < algo.DirectionCount; dir++ {
-					iDir, jDir := algo.DirectionToIndexes(i, j, algo.Direction(dir))
-					cost := field.Length(i, j, algo.Direction(dir))
-					if cost == nil {
+				for j := 0; j < jMax; j++ {
+					dist := dists.At(i, j)
+					if dist < -0.5 {
 						continue
 					}
-					distDir := dists.At(iDir, jDir)
-					newDist := dist + *cost
-					if distDir < -0.5 || (distDir > -0.5 && newDist < distDir) {
-						dists.SetAt(iDir, jDir, newDist)
+					for dir := 0; dir < algo.DirectionCount; dir++ {
+						iDir, jDir := algo.DirectionToIndexes(i, j, algo.Direction(dir))
+						cost := field.Length(i, j, algo.Direction(dir))
+						if cost == nil {
+							continue
+						}
+						distDir := dists.At(iDir, jDir)
+						newDist := dist + *cost
+						if distDir < -0.5 || (distDir > -0.5 && newDist < distDir) {
+							dists.SetAt(iDir, jDir, newDist)
+						}
 					}
 				}
+				if i == iFrom {
+					batchLock[numBatch] = true
+				}
 			}
-		}
+		})
+
 	}
 	bar.Finish()
 	fmt.Printf("Total cost: %0.2f\n", dists.At(opts.FromI, opts.FromJ))
-	//dists.FlushToFile(opts.Out)
 
 	result := make([]common.Position, 0)
-	count := 0
 	for i, j := opts.FromI, opts.FromJ; i != opts.ToI && j != opts.ToJ; {
-		count++
 		result = append(result, common.Position{i, j})
 		minDist, minPosition := float32(-1), common.Position{}
 		for dir := 0; dir < algo.DirectionCount; dir++ {
@@ -103,5 +118,4 @@ func main() {
 		return
 	}
 	_, err = file.Write(data)
-
 }
