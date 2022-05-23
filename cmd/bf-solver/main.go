@@ -71,7 +71,6 @@ func main() {
 	}
 	bar.Finish()
 	fmt.Printf("Total cost: %0.2f\n", dists.At(opts.FromI, opts.FromJ))
-	//dists.FlushToFile(opts.Out)
 
 	result := make([]common.Position, 0)
 	count := 0

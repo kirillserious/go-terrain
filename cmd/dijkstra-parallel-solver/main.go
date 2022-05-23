@@ -7,6 +7,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"runtime"
 	"terrain/internal"
 	algo "terrain/internal/algorithms"
 	"terrain/internal/common"
@@ -33,9 +34,35 @@ func main() {
 	// Prepare types
 	field := algo.NewField(heights, rgba)
 	usedNodes := map[common.Position]struct{}{}
-	borderNodes := map[common.Position]struct{}{
-		common.Position{opts.ToI, opts.ToJ}: struct{}{},
+
+	numCPU := runtime.NumCPU()
+	borderNodes := make([]map[common.Position]struct{}, numCPU)
+	for i := range borderNodes {
+		borderNodes[i] = make(map[common.Position]struct{})
 	}
+	borderNodes[0][common.Position{opts.ToI, opts.ToJ}] = struct{}{}
+	borderLen := func() (count int) {
+		for _, batch := range borderNodes {
+			count += len(batch)
+		}
+		return
+	}
+	borderAdd := func(pos common.Position) {
+		count, idx := len(borderNodes[0]), 0
+		for i, batch := range borderNodes {
+			if _, ok := batch[pos]; ok {
+				return
+			}
+			if len(batch) < count {
+				count, idx = len(batch), i
+			}
+		}
+		borderNodes[idx][pos] = struct{}{}
+	}
+	borderRemove := func(pos common.Position, batchIdx int) {
+		delete(borderNodes[batchIdx], pos)
+	}
+
 	iMax, jMax := field.Bounds()
 	// Fill inf as -1
 	dists := internal.EmptyHeightMap(iMax, jMax)
@@ -48,21 +75,37 @@ func main() {
 
 	bar := pb.StartNew(iMax * jMax)
 	bar.SetTemplateString(`{{ bar . }} {{percent .}} {{ rtime .}} {{ etime . }}`)
-	for len(borderNodes) != 0 {
+
+	for borderLen() != 0 {
 		bar.Increment()
 
-		minDist, minPosition := float32(-1), common.Position{0, 0}
-		for borderNode := range borderNodes {
-			dist := dists.At(borderNode.I, borderNode.J)
+		batchResult := make([]common.Position, numCPU)
+		internal.ParallelFor(0, numCPU, 1, func(batchNum int) {
+			minDist, minPosition := float32(-1), common.Position{-1, -1}
+			for borderNode := range borderNodes[batchNum] {
+				dist := dists.At(borderNode.I, borderNode.J)
+				if minDist < -0.5 || (minDist > -0.5 && dist < minDist) {
+					minDist, minPosition = dist, borderNode
+				}
+			}
+			batchResult[batchNum] = minPosition
+		})
+
+		minDist, minPosition, minBatch := float32(-1), common.Position{0, 0}, 0
+		for idx, pos := range batchResult {
+			if pos.I == -1 {
+				continue
+			}
+			dist := dists.At(pos.I, pos.J)
 			if minDist < -0.5 || (minDist > -0.5 && dist < minDist) {
-				minDist, minPosition = dist, borderNode
+				minDist, minPosition, minBatch = dist, pos, idx
 			}
 		}
 		usedNodes[minPosition] = struct{}{}
 		if minPosition.I == opts.FromI && minPosition.J == opts.FromJ {
 			break
 		}
-		delete(borderNodes, minPosition)
+		borderRemove(minPosition, minBatch)
 		for i := 0; i < algo.DirectionCount; i++ {
 			cost := field.Length(minPosition.I, minPosition.J, algo.Direction(i))
 			if cost == nil {
@@ -76,7 +119,7 @@ func main() {
 			if costDir < -0.5 || (costDir > -0.5 && newCostDir < costDir) {
 				dists.SetAt(iDir, jDir, newCostDir)
 			}
-			borderNodes[common.Position{iDir, jDir}] = struct{}{}
+			borderAdd(common.Position{iDir, jDir})
 		}
 	}
 	bar.Finish()
@@ -110,4 +153,61 @@ func main() {
 		return
 	}
 	_, err = file.Write(data)
+}
+
+type List struct {
+	Position     common.Position
+	before, next *List
+}
+
+type PosCollection struct {
+	first, last *List
+	length      int
+	batches     []Batch
+}
+
+type Batch struct {
+	node             *List
+	position, length int
+}
+
+func NewPosCollection(numCPU int) (collection *PosCollection) {
+	collection = new(PosCollection)
+	collection.batches = make([]Batch, numCPU)
+	return
+}
+
+func (collection *PosCollection) Add(position common.Position) *List {
+	collection.length++
+	list := new(List)
+	list.Position = position
+	if collection.first == nil {
+		collection.first, collection.last = list, list
+	} else {
+		list.before = collection.last
+		collection.last.next = list
+		collection.last = collection.last.next
+	}
+	return list
+}
+
+func (collection *PosCollection) Remove(posNode *List) {
+	collection.length--
+	if posNode == collection.first {
+		if collection.first == collection.last {
+			collection.first, collection.last = nil, nil
+			return
+		}
+		collection.first = collection.first.next
+		collection.first.before = nil
+		return
+	}
+	if posNode == collection.last {
+		collection.last = collection.last.before
+		collection.last.next = nil
+		return
+	}
+	posNode.before.next = posNode.next
+	posNode.next.before = posNode.before
+	return
 }
