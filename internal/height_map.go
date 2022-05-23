@@ -16,10 +16,15 @@ type HeightMap struct {
 	Stride  int
 }
 
-func GenerateHeightMap(iMax, jMax int) (heights *HeightMap) {
+func EmptyHeightMap(iMax, jMax int) (heights *HeightMap) {
 	heights = new(HeightMap)
 	heights.Stride = jMax
 	heights.Heights = make([]float32, iMax*jMax)
+	return
+}
+
+func GenerateHeightMap(iMax, jMax int) (heights *HeightMap) {
+	heights = EmptyHeightMap(iMax, jMax)
 	p := perlin.NewPerlin(4., 2., 7, time.Now().UnixMilli())
 	noise := func(x, y float64) float32 {
 		return float32(p.Noise2D(x, y))
@@ -54,6 +59,14 @@ func LoadHeightMap(filePath string) (heights *HeightMap) {
 func (hm *HeightMap) Bounds() (iMax, jMax int) {
 	iMax, jMax = len(hm.Heights)/hm.Stride, hm.Stride
 	return
+}
+
+func (hm *HeightMap) At(i, j int) float32 {
+	return hm.Heights[i*hm.Stride+j]
+}
+
+func (hm *HeightMap) SetAt(i, j int, value float32) {
+	hm.Heights[i*hm.Stride+j] = value
 }
 
 // Flush writes the height map data into the provided writer

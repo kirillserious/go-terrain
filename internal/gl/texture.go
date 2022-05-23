@@ -4,9 +4,7 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	log "github.com/sirupsen/logrus"
 	"image"
-	"image/draw"
-	_ "image/png"
-	"os"
+	"terrain/internal/common"
 )
 
 // TODO: Add up to 32 textures, we do not need it now
@@ -53,22 +51,7 @@ func NewTexture(rgba *image.RGBA) (texture *Texture) {
 }
 
 func NewTextureFromFile(path string) (texture *Texture) {
-	imgFile, err := os.Open(path)
-	if err != nil {
-		log.WithError(err).Panic("texture %q not found on disk", path)
-	}
-
-	img, _, err := image.Decode(imgFile)
-	if err != nil {
-		log.WithError(err).Panic("failed to decode image")
-	}
-
-	rgba := image.NewRGBA(img.Bounds())
-	if rgba.Stride != rgba.Rect.Size().X*4 {
-		log.Panic("unsupported stride")
-	}
-	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
-
+	rgba := common.LoadRGBA(path)
 	return NewTexture(rgba)
 }
 

@@ -8,8 +8,8 @@ import (
 )
 
 var opts = struct {
-	HeightMap string  `short:"m" long:"map" description:"Height map"`
-	Texture   *string `short:"t" long:"texture" description:"Texture"`
+	HeightMap string `short:"m" long:"map" description:"Height map" required:"yes"`
+	Texture   string `short:"t" long:"texture" description:"Texture" required:"yes"`
 }{}
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
 	defer terminate()
 
 	heights := internal.LoadHeightMap(opts.HeightMap)
-	texture := gl2.NewTextureFromFile("../terrain/untitled.png")
+	texture := gl2.NewTextureFromFile(opts.Texture)
 
 	terrain := internal.NewTerrain2(heights, texture)
 
