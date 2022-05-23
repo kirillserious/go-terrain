@@ -32,10 +32,6 @@ func main() {
 
 	// Prepare types
 	field := algo.NewField(heights, rgba)
-	usedNodes := map[common.Position]struct{}{}
-	borderNodes := map[common.Position]struct{}{
-		common.Position{opts.ToI, opts.ToJ}: struct{}{},
-	}
 	iMax, jMax := field.Bounds()
 	// Fill inf as -1
 	dists := internal.EmptyHeightMap(iMax, jMax)
@@ -47,38 +43,39 @@ func main() {
 	dists.SetAt(opts.ToI, opts.ToJ, 0)
 
 	bar := pb.StartNew(iMax * jMax)
-	for len(borderNodes) != 0 {
-		bar.Increment()
 
-		minDist, minPosition := float32(-1), common.Position{0, 0}
-		for borderNode := range borderNodes {
-			dist := dists.At(borderNode.I, borderNode.J)
-			if minDist < -0.5 || dist < minDist {
-				minDist, minPosition = dist, borderNode
+	stop := iMax*jMax - 2
+	for k := 0; k < stop; k++ {
+		bar.Increment()
+		for i := 0; i < iMax; i++ {
+			for j := 0; j < jMax; j++ {
+				dist := dists.At(i, j)
+				if dist < -0.5 {
+					continue
+				}
+				for dir := 0; dir < algo.DirectionCount; dir++ {
+					iDir, jDir := algo.DirectionToIndexes(i, j, algo.Direction(dir))
+					cost := field.Length(i, j, algo.Direction(dir))
+					if cost == nil {
+						continue
+					}
+					distDir := dists.At(iDir, jDir)
+					newDist := dist + *cost
+					if distDir < -0.5 || (distDir > -0.5 && newDist < distDir) {
+						dists.SetAt(iDir, jDir, newDist)
+					}
+				}
 			}
-		}
-		usedNodes[minPosition] = struct{}{}
-		delete(borderNodes, minPosition)
-		for i := 0; i < algo.DirectionCount; i++ {
-			cost := field.Length(minPosition.I, minPosition.J, algo.Direction(i))
-			if cost == nil {
-				continue
-			}
-			iDir, jDir := algo.DirectionToIndexes(minPosition.I, minPosition.J, algo.Direction(i))
-			if _, ok := usedNodes[common.Position{iDir, jDir}]; ok {
-				continue
-			}
-			costDir, newCostDir := dists.At(iDir, jDir), dists.At(minPosition.I, minPosition.J)+*cost
-			if costDir < -0.5 || newCostDir < costDir {
-				dists.SetAt(iDir, jDir, newCostDir)
-			}
-			borderNodes[common.Position{iDir, jDir}] = struct{}{}
 		}
 	}
 	bar.Finish()
 	fmt.Printf("Total cost: %0.2f\n", dists.At(opts.FromI, opts.FromJ))
+	//dists.FlushToFile(opts.Out)
+
 	result := make([]common.Position, 0)
+	count := 0
 	for i, j := opts.FromI, opts.FromJ; i != opts.ToI && j != opts.ToJ; {
+		count++
 		result = append(result, common.Position{i, j})
 		minDist, minPosition := float32(-1), common.Position{}
 		for dir := 0; dir < algo.DirectionCount; dir++ {
@@ -87,13 +84,12 @@ func main() {
 				continue
 			}
 			dist := dists.At(iDir, jDir)
-			if minDist < -0.5 || dist < minDist {
+			if minDist < -0.5 || (minDist > -0.5 && dist > -0.5 && dist < minDist) {
 				minDist, minPosition = dist, common.Position{iDir, jDir}
 			}
 		}
 		i, j = minPosition.I, minPosition.J
 	}
-
 	file, err := os.Create(opts.Out)
 	if err != nil {
 		log.WithError(err).Panic("Failed to open the destination file")
@@ -106,4 +102,5 @@ func main() {
 		return
 	}
 	_, err = file.Write(data)
+
 }

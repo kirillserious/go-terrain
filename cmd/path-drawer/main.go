@@ -37,12 +37,17 @@ func main() {
 	json.Unmarshal(data, &path)
 
 	maxI, maxJ := rgba.Rect.Size().X, rgba.Rect.Size().Y
+	maxK := 1
+	if maxI > 500 {
+		maxK = 3
+	}
+
 	bar := pb.StartNew(len(path))
 	for _, pos := range path {
 		bar.Increment()
 		rgba.SetRGBA(pos.I, pos.J, color.RGBA{R: 0xff, G: 0, B: 0, A: 0xff})
-		for l := 0; l < 3; l++ {
-			for k := 0; k < 3; k++ {
+		for l := 0; l < maxK; l++ {
+			for k := 0; k < maxK; k++ {
 				fcn := func(i, j int) {
 					if i < 0 || j < 0 || i >= maxI || j >= maxJ {
 						return
