@@ -53,14 +53,11 @@ func main() {
 		minDist, minPosition := float32(-1), common.Position{0, 0}
 		for borderNode := range borderNodes {
 			dist := dists.At(borderNode.I, borderNode.J)
-			if minDist < -0.5 || (minDist > -0.5 && dist < minDist) {
+			if minDist < -0.5 || dist < minDist {
 				minDist, minPosition = dist, borderNode
 			}
 		}
 		usedNodes[minPosition] = struct{}{}
-		if minPosition.I == opts.FromI && minPosition.J == opts.FromJ {
-			break
-		}
 		delete(borderNodes, minPosition)
 		for i := 0; i < algo.DirectionCount; i++ {
 			cost := field.Length(minPosition.I, minPosition.J, algo.Direction(i))
@@ -72,7 +69,7 @@ func main() {
 				continue
 			}
 			costDir, newCostDir := dists.At(iDir, jDir), dists.At(minPosition.I, minPosition.J)+*cost
-			if costDir < -0.5 || (costDir > -0.5 && newCostDir < costDir) {
+			if costDir < -0.5 || newCostDir < costDir {
 				dists.SetAt(iDir, jDir, newCostDir)
 			}
 			borderNodes[common.Position{iDir, jDir}] = struct{}{}
@@ -90,7 +87,7 @@ func main() {
 				continue
 			}
 			dist := dists.At(iDir, jDir)
-			if minDist < -0.5 || (minDist > -0.5 && dist > -0.5 && dist < minDist) {
+			if minDist < -0.5 || dist < minDist {
 				minDist, minPosition = dist, common.Position{iDir, jDir}
 			}
 		}
