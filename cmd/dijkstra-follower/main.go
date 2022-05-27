@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	pb "github.com/cheggaaa/pb/v3"
-	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"runtime"
 	"terrain/internal"
@@ -13,23 +13,33 @@ import (
 	"terrain/internal/common"
 )
 
+const (
+	HeightsPath string = "/mnt/hm.json"
+	TexturePath string = "/mnt/texture.png"
+)
+
 var opts = struct {
-	HeightMap string `short:"m" long:"height_map" required:"yes"`
-	Texture   string `short:"t" long:"texture" required:"yes"`
-	FromI     int    `long:"from-i" required:"yes"`
-	FromJ     int    `long:"from-j" required:"yes"`
-	ToI       int    `long:"to-i" required:"yes"`
-	ToJ       int    `long:"to-j" required:"yes"`
-	Out       string `short:"o" long:"out" required:"yes"`
+	FromI int `long:"from-i" required:"yes"`
+	FromJ int `long:"from-j" required:"yes"`
+	ToI   int `long:"to-i" required:"yes"`
+	ToJ   int `long:"to-j" required:"yes"`
 }{}
 
-func main() {
-	if _, err := flags.Parse(&opts); err != nil {
-		os.Exit(1)
-	}
+func handler() func(http.ResponseWriter, *http.Request) {
+	heights := internal.LoadHeightMap(HeightsPath)
+	rgba := common.LoadRGBA(TexturePath)
 
-	heights := internal.LoadHeightMap(opts.HeightMap)
-	rgba := common.LoadRGBA(opts.Texture)
+	// Prepare types
+	field := algo.NewField(heights, rgba)
+	usedNodes := map[common.Position]struct{}{}
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+func main() {
+	heights := internal.LoadHeightMap(HeightsPath)
+	rgba := common.LoadRGBA(TexturePath)
 
 	// Prepare types
 	field := algo.NewField(heights, rgba)
