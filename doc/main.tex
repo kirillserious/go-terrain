@@ -7,7 +7,7 @@
 \usepackage{indentfirst}                   % Отступ перед абзацами
 
 \usepackage[unicode]{hyperref}                                         % Ссылки и русские закладки
-\hypersetup {                                                          %
+\hypersetup{                                                          %
     pdftitle={Курсовая работа},                                        % Название документа
     pdfsubject={Параллельное что-то},                                  % Тема документа
     pdfauthor={Егоров Кирилл Юлианович},                               % Автор документа
@@ -16,27 +16,39 @@
     hidelinks                                                          % Скрывает рамку вокруг ссылок
 }
 
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsmath}
+
 \begin{document}
     \input{title_page/doc.tex}
     \tableofcontents
     \clearpage
 
     \section{Введение}
+    \input{content/intro.tex}
+    \newpage
     \section{Постановка задачи}
-    \section{Классические решения}
-        \subsection{Алгоритм Дейкстры}
-        \subsection{Алгоритм Беллмана--Форда}
-    \section{Параллельные алгоритмы}
-        \subsection{Параллелелизм на ядрах процессора}
-        \subsection{Параллелелизм на многонодной установке}
-        \subsection{Параллелелизм на графической видеокарте}
-    \section{Описание общего программного решения}
+    \input{content/formulation.tex}
+    \section{Алгоритм Беллмана--Форда}
+    \input{content/bf.tex}
+    \section{Алгоритм Дейкстры}
+    \input{content/dijkstra.tex}
+    \section{Описание программного решения}
+    \input{content/program.tex}
+    \section{Сравнение алгоритмов}
+    \input{content/compare.tex}
+    \newpage
     \section{Заключение}
-    
+    \input{content/conclusion.tex}
+    \newpage
     \begin{thebibliography}{9}
-        \bibitem{} Bellman,R. DYNAMIC PROGRAMMING. Princeton University Press, New Jersey, 1957.
-        \bibitem{} Kirk, D. E. OPTIMAL CONTROL THEORY: AN INTRODUCTION. Prentice Hall, 1970.
-        \bibitem{} Ross, I. M. PONTRYAGIN'S PRINCIPLE, in Ch.2 of A Primer on Pontryagin's Principle in Optimal Control, Collegiate Publishers, San Francisco, 2015.
+        \bibitem{bellman} Беллман~Р., Дрейфус~С. \textit{Прикладные задачи динамического программирования.} М.:~Наука,~1965.
+        \bibitem{dijkstra} Shu-Xi, Wang. \textit{The Improved Dijkstra's Shortest Path Algorithm and Its Application.} Procedia Engineering. 29. 1186-1190. 2012.
+        \bibitem{review} Glabowski, M., Musznicki, B., Nowak, P., Zwierzykowski, P. \textit{Review and Performance Analysis of Shortest Path Problem Solving Algorithms.} International Journal On Advances in Software. 7. 20-30. 2014.
+        \bibitem{gyb} Корниенко~В.~С. \textit{Численные методы решения задач ``среднего поля''}:дис. к.ф.-м.н.: 05.13.18 --- Сибирский федеральный университет, Красноярск, 2021.
+        \bibitem{optcontrol} Ведякова А. О., Милованович Е. В., Слита О. В., Тертычный-Даури В. Ю. \textit{Методы теории оптимального управления.} М.: Редакционно-издательский отдел Университета ИТМО. Санкт-Петербург, 2021.
+        \bibitem{perlin} John Brosz, Faramarz F. Samavati and Mario Costa Sousa. \textit{Terrain Synthesis By-Example, Advances in Computer Graphics and Computer Vision.} Communications in Computer and Information Science 4, 2007, 58--77
     \end{thebibliography}
 \end{document}
 

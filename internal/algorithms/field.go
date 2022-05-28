@@ -1,9 +1,10 @@
 package algorithms
 
 import (
-	log "github.com/sirupsen/logrus"
 	"image"
 	"terrain/internal"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Field struct {
@@ -97,13 +98,13 @@ func (field *Field) IsValidIndex(i, j int) bool {
 const requireCost float32 = 10
 
 func (field *Field) Length(i, j int, dir Direction) *float32 {
-	iTo, jTo := DirectionToIndexes(i, j, dir)
-	if !field.IsValidIndex(iTo, jTo) {
+	iFrom, jFrom := DirectionToIndexes(i, j, dir)
+	if !field.IsValidIndex(iFrom, jFrom) {
 		return nil
 	}
-	heightFrom, heightTo := field.HeightMap.At(i, j), field.HeightMap.At(iTo, jTo)
+	heightFrom, heightTo := field.HeightMap.At(iFrom, jFrom), field.HeightMap.At(i, j)
 	if heightTo > heightFrom {
-		result := (heightTo-heightFrom)*5 + requireCost
+		result := (heightTo-heightFrom)*100 + requireCost
 		return &result
 	} else {
 		result := requireCost

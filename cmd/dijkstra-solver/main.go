@@ -3,13 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	pb "github.com/cheggaaa/pb/v3"
-	"github.com/jessevdk/go-flags"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"terrain/internal"
 	algo "terrain/internal/algorithms"
 	"terrain/internal/common"
+
+	pb "github.com/cheggaaa/pb/v3"
+	"github.com/jessevdk/go-flags"
+	log "github.com/sirupsen/logrus"
 )
 
 var opts = struct {
@@ -34,7 +35,7 @@ func main() {
 	field := algo.NewField(heights, rgba)
 	usedNodes := map[common.Position]struct{}{}
 	borderNodes := map[common.Position]struct{}{
-		common.Position{opts.ToI, opts.ToJ}: struct{}{},
+		{I: opts.ToI, J: opts.ToJ}: {},
 	}
 	iMax, jMax := field.Bounds()
 	// Fill inf as -1
@@ -51,7 +52,7 @@ func main() {
 	for len(borderNodes) != 0 {
 		bar.Increment()
 
-		minDist, minPosition := float32(-1), common.Position{0, 0}
+		minDist, minPosition := float32(-1), common.Position{I: 0, J: 0}
 		for borderNode := range borderNodes {
 			dist := dists.At(borderNode.I, borderNode.J)
 			if minDist < -0.5 || (minDist > -0.5 && dist < minDist) {
@@ -69,21 +70,21 @@ func main() {
 				continue
 			}
 			iDir, jDir := algo.DirectionToIndexes(minPosition.I, minPosition.J, algo.Direction(i))
-			if _, ok := usedNodes[common.Position{iDir, jDir}]; ok {
+			if _, ok := usedNodes[common.Position{I: iDir, J: jDir}]; ok {
 				continue
 			}
 			costDir, newCostDir := dists.At(iDir, jDir), dists.At(minPosition.I, minPosition.J)+*cost
 			if costDir < -0.5 || (costDir > -0.5 && newCostDir < costDir) {
 				dists.SetAt(iDir, jDir, newCostDir)
 			}
-			borderNodes[common.Position{iDir, jDir}] = struct{}{}
+			borderNodes[common.Position{I: iDir, J: jDir}] = struct{}{}
 		}
 	}
 	bar.Finish()
 	fmt.Printf("Total cost: %0.2f\n", dists.At(opts.FromI, opts.FromJ))
 	result := make([]common.Position, 0)
-	for i, j := opts.FromI, opts.FromJ; i != opts.ToI && j != opts.ToJ; {
-		result = append(result, common.Position{i, j})
+	for i, j := opts.FromI, opts.FromJ; i != opts.ToI || j != opts.ToJ; {
+		result = append(result, common.Position{I: i, J: j})
 		minDist, minPosition := float32(-1), common.Position{}
 		for dir := 0; dir < algo.DirectionCount; dir++ {
 			iDir, jDir := algo.DirectionToIndexes(i, j, algo.Direction(dir))
@@ -92,7 +93,7 @@ func main() {
 			}
 			dist := dists.At(iDir, jDir)
 			if minDist < -0.5 || (minDist > -0.5 && dist > -0.5 && dist < minDist) {
-				minDist, minPosition = dist, common.Position{iDir, jDir}
+				minDist, minPosition = dist, common.Position{I: iDir, J: jDir}
 			}
 		}
 		i, j = minPosition.I, minPosition.J

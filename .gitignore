@@ -20,4 +20,6 @@
 *.log
 *.aux
 *.toc
+*.nav
+*.snm
 *converted-to.pdf
