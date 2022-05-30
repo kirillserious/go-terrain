@@ -14,7 +14,7 @@ type Field struct {
 
 func NewField(heights *internal.HeightMap, rgba *image.RGBA) (field *Field) {
 	iMax, jMax := heights.Bounds()
-	if rgba.Rect.Size().X != iMax || rgba.Rect.Size().Y != jMax {
+	if rgba.Rect.Size().X < iMax || rgba.Rect.Size().Y < jMax {
 		log.Panic("Incorrect sizes")
 	}
 	field = new(Field)
